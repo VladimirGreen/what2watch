@@ -6,10 +6,8 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <!-- CSP: разрешаем запросы только к TMDb -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.themoviedb.org https://image.tmdb.org; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data: https://image.tmdb.org;">
   <title>What2Watch</title>
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body class="theme-dark">
 
@@ -40,8 +38,12 @@
 
     <!-- Поиск -->
     <div id="screen-search" class="screen">
-      <input type="text" class="search-input" placeholder="Поиск...">
-      <div class="mini-cards"></div>
+      <input type="text" class="search-input" id="search-input" placeholder="Поиск фильмов...">
+      <div class="mini-cards" id="search-results"></div>
+      <div id="search-collection-select" class="hidden">
+        <select id="collection-select"></select>
+        <button id="add-to-collection-btn">Добавить</button>
+      </div>
     </div>
 
     <!-- Подборки -->
@@ -49,11 +51,18 @@
       <div id="folders-view">
         <h3>Мои подборки</h3>
         <div id="folders-list"></div>
+        <button id="create-collection-btn" class="btn btn-secondary">+ Новая подборка</button>
       </div>
       <div id="folder-content" style="display:none;">
         <button class="back-btn">← Назад</button>
-        <h3 id="folder-title"></h3>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 id="folder-title"></h3>
+          <button id="share-collection-btn" title="Поделиться" style="background:none; border:none; font-size:1.2rem;">🔗</button>
+        </div>
         <div class="mini-cards" id="folder-cards"></div>
+        <div id="checklist-toggle" style="margin-top:10px;">
+          <label><input type="checkbox" id="show-checked"> Показывать отмеченные</label>
+        </div>
       </div>
     </div>
 
@@ -75,7 +84,7 @@
       <button class="btn btn-secondary" id="clear-cache-btn">🗑 Сбросить все данные и перезагрузить</button>
     </div>
 
-    <!-- Шторка деталей -->
+    <!-- Шторка деталей фильма -->
     <div id="movie-sheet" class="sheet-overlay" style="display:none;">
       <div class="sheet-content">
         <button class="sheet-close">✕</button>
@@ -88,6 +97,7 @@
         <div class="sheet-actions">
           <button class="btn btn-watchlist" id="sheet-add-watchlist">Буду смотреть</button>
           <button class="btn btn-watched" id="sheet-mark-watched">Просмотрено</button>
+          <button class="btn btn-trailer" id="sheet-trailer" style="display:none;">▶ Трейлер</button>
         </div>
       </div>
     </div>
@@ -132,6 +142,6 @@
     </nav>
   </div>
 
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
