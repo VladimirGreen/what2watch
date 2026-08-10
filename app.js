@@ -74,28 +74,37 @@ document.addEventListener('DOMContentLoaded', function() {
     localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
   }
 
-  // Инициализация хранилища
+  // Инициализация
   if (!localStorage.getItem(STORAGE_PREFIX + 'watchlist')) storageSet('watchlist', []);
   if (!localStorage.getItem(STORAGE_PREFIX + 'watched')) storageSet('watched', []);
   if (!localStorage.getItem(STORAGE_PREFIX + 'excluded')) storageSet('excluded', []);
   if (!localStorage.getItem(STORAGE_PREFIX + 'filters')) {
-    storageSet('filters', { genres: [], yearFrom: 1900, yearTo: 2026, ratingMin: 0, showWatched: false, moodTags: [], anime: false });
+    storageSet('filters', {
+      genres: [],
+      yearFrom: 1900,
+      yearTo: 2026,
+      ratingMin: 0,
+      showWatched: false,
+      moodTags: [],
+      anime: false,
+      dorama: false
+    });
   }
   if (!localStorage.getItem(STORAGE_PREFIX + 'showWatched')) storageSet('showWatched', false);
   if (!localStorage.getItem(STORAGE_PREFIX + 'userCollections')) storageSet('userCollections', {});
   if (!localStorage.getItem(STORAGE_PREFIX + 'checklists')) storageSet('checklists', {});
 
-  // ========== АВТОРСКИЕ ТЕГИ ==========
+  // ========== АВТОРСКИЕ ТЕГИ (замени ID на реальные) ==========
   var authorTags = {
-    'советское': [1,2,3], // замени на реальные ID
-    'VHS': [4,5,6],
-    'осенняя меланхолия': [7,8],
-    'мне одиноко': [9],
-    'тупые злодеи': [10]
+    'советское': [],
+    'VHS': [],
+    'осенняя меланхолия': [],
+    'мне одиноко': [],
+    'тупые злодеи': []
   };
 
   // ========== TMDb API ==========
-  var TMDB_API_KEY = 'ef7c2a92898037d91e4481fc43a1bf6a'; // 
+  var TMDB_API_KEY = 'ВАШ_КЛЮЧ'; // <-- замените
   var TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
   var allGenres = [];
@@ -134,34 +143,70 @@ document.addEventListener('DOMContentLoaded', function() {
     container.innerHTML = html;
   }
 
+  // Загрузка и кэширование актёров
+  function loadMovieCredits(movieId, callback) {
+    var cacheKey = 'credits_' + movieId;
+    var cached = storageGet(cacheKey, null);
+    if (cached) {
+      callback(cached);
+      return;
+    }
+    var url = TMDB_BASE_URL + '/movie/' + movieId + '/credits?api_key=' + TMDB_API_KEY + '&language=ru';
+    fetch(url)
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        storageSet(cacheKey, data);
+        callback(data);
+      })
+      .catch(function(err) {
+        console.error('Ошибка загрузки актёров', err);
+        callback(null);
+      });
+  }
+
+  function displayActors(container, credits) {
+    if (!credits || !credits.cast) return;
+    var cast = credits.cast.slice(0, 5);
+    var html = '';
+    cast.forEach(function(actor) {
+      var photo = actor.profile_path ? 'https://image.tmdb.org/t/p/w185' + actor.profile_path : '';
+      html += '<span class="actor">' +
+        (photo ? '<img src="' + photo + '">' : '') +
+        actor.name + '</span>';
+    });
+    container.innerHTML = html;
+  }
+
+  // Получение случайного фильма
   async function fetchRandomMovie(useFilters) {
     var excluded = storageGet('excluded', []);
     var watchedIds = storageGet('watched', []).map(function(m) { return m.id; });
     var filters = storageGet('filters', {});
     var showWatched = filters.showWatched || false;
     var animeOnly = filters.anime || false;
+    var doramaOnly = filters.dorama || false;
     var moodTags = filters.moodTags || [];
 
-    // Если выбраны авторские теги, сразу строим список кандидатов
     var moodMovieIds = [];
     if (moodTags.length > 0) {
       moodTags.forEach(function(tag) {
         moodMovieIds = moodMovieIds.concat(authorTags[tag] || []);
       });
-      moodMovieIds = [...new Set(moodMovieIds)]; // уникальные
+      moodMovieIds = [...new Set(moodMovieIds)];
     }
 
     var params = 'api_key=' + TMDB_API_KEY + '&language=ru&sort_by=popularity.desc&include_adult=false&include_video=false&page=';
     if (useFilters !== false) {
       if (filters.genres && filters.genres.length > 0) params += '&with_genres=' + filters.genres.join(',');
-      if (animeOnly) params += '&with_genres=16&with_keywords=210024'; // аниме
+      if (animeOnly) params += '&with_genres=16&with_keywords=210024';
+      if (doramaOnly) params += '&with_original_language=ko&with_genres=18';
       if (filters.yearFrom && filters.yearFrom > 1900) params += '&primary_release_date.gte=' + filters.yearFrom + '-01-01';
       if (filters.yearTo && filters.yearTo < 2026) params += '&primary_release_date.lte=' + filters.yearTo + '-12-31';
       if (filters.ratingMin && filters.ratingMin > 0) params += '&vote_average.gte=' + filters.ratingMin;
     }
 
     for (var attempt = 0; attempt < 10; attempt++) {
-      var randomPage = Math.floor(Math.random() * 50) + 1;
+      var randomPage = Math.floor(Math.random() * 30) + 1;
       var url = TMDB_BASE_URL + '/discover/movie?' + params + '&page=' + randomPage;
       try {
         var resp = await fetch(url);
@@ -170,10 +215,8 @@ document.addEventListener('DOMContentLoaded', function() {
         var shuffled = data.results.sort(function() { return 0.5 - Math.random(); });
         for (var i = 0; i < shuffled.length; i++) {
           var movie = shuffled[i];
-          // Проверка на исключённые и просмотренные
           if (excluded.indexOf(movie.id) !== -1) continue;
           if (!showWatched && watchedIds.indexOf(movie.id) !== -1) continue;
-          // Если заданы теги, проверяем, есть ли фильм в moodMovieIds
           if (moodMovieIds.length > 0 && moodMovieIds.indexOf(movie.id) === -1) continue;
           var detailUrl = TMDB_BASE_URL + '/movie/' + movie.id + '?api_key=' + TMDB_API_KEY + '&language=ru';
           var detailResp = await fetch(detailUrl);
@@ -181,7 +224,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       } catch (err) { console.error(err); }
     }
-    // Фолбэк без фильтров
     if (useFilters !== false) return await fetchRandomMovie(false);
     return null;
   }
@@ -205,7 +247,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (genresEl && movie.genres) {
       genresEl.textContent = movie.genres.map(function(g) { return g.name; }).join(', ');
     }
-    // Авторские теги для этого фильма
     var tagsContainer = document.querySelector('#screen-randomizer .tags');
     if (tagsContainer) {
       var tags = getAuthorTagsForMovie(movie.id);
@@ -214,6 +255,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     document.querySelector('#screen-randomizer .description').textContent = movie.overview || 'Описание отсутствует.';
     document.querySelector('#screen-randomizer .description').classList.remove('expanded');
+
+    // Актёры
+    var actorsContainer = document.querySelector('#screen-randomizer .actors');
+    if (actorsContainer) {
+      loadMovieCredits(movie.id, function(credits) {
+        displayActors(actorsContainer, credits);
+      });
+    }
+
     var card = document.querySelector('#screen-randomizer .card');
     if (card) {
       card.dataset.movieId = movie.id;
@@ -231,12 +281,10 @@ document.addEventListener('DOMContentLoaded', function() {
     return result;
   }
 
-  // Загрузка первого фильма
   function loadInitialMovie() {
     fetchRandomMovie().then(function(movie) {
       if (!movie) {
-        // Экстренный фолбэк
-        var fallbackUrl = TMDB_BASE_URL + '/movie/popular?api_key=' + TMDB_API_KEY + '&language=ru&page=' + (Math.floor(Math.random() * 30) + 1);
+        var fallbackUrl = TMDB_BASE_URL + '/movie/popular?api_key=' + TMDB_API_KEY + '&language=ru&page=' + (Math.floor(Math.random() * 10) + 1);
         fetch(fallbackUrl)
           .then(function(resp) { return resp.json(); })
           .then(function(data) {
@@ -270,6 +318,45 @@ document.addEventListener('DOMContentLoaded', function() {
     var title = card.dataset.movieTitle;
     var url = 'https://vladimirgreen.github.io/what2watch/?movie=' + card.dataset.movieId;
     shareContent(title, url);
+  });
+
+  // ========== СВАЙПЫ ==========
+  var swipeCard = document.getElementById('swipe-card');
+  var startX, startY;
+  swipeCard.addEventListener('touchstart', function(e) {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  });
+  swipeCard.addEventListener('touchend', function(e) {
+    var endX = e.changedTouches[0].clientX;
+    var endY = e.changedTouches[0].clientY;
+    var diffX = endX - startX;
+    var diffY = endY - startY;
+    if (Math.abs(diffX) > 40 || Math.abs(diffY) > 40) {
+      if (Math.abs(diffX) > Math.abs(diffY)) {
+        if (diffX > 0) {
+          swipeCard.classList.add('swipe-right');
+          setTimeout(function() {
+            swipeCard.classList.remove('swipe-right');
+            handleButton('watchlist');
+          }, 300);
+        } else {
+          swipeCard.classList.add('swipe-left');
+          setTimeout(function() {
+            swipeCard.classList.remove('swipe-left');
+            handleButton('skip');
+          }, 300);
+        }
+      } else {
+        if (diffY < 0) {
+          swipeCard.classList.add('swipe-up');
+          setTimeout(function() {
+            swipeCard.classList.remove('swipe-up');
+            handleButton('watched');
+          }, 300);
+        }
+      }
+    }
   });
 
   // ========== КНОПКИ РАНДОМАЙЗЕРА ==========
@@ -312,13 +399,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (filters.ratingMin && filters.ratingMin > 0) activeCount++;
     if (filters.showWatched) activeCount++;
     if (filters.anime) activeCount++;
+    if (filters.dorama) activeCount++;
 
-    var countSpan = document.getElementById('filter-count');
-    if (countSpan) countSpan.textContent = activeCount > 0 ? '(' + activeCount + ')' : '';
     var btn = document.getElementById('open-filter-btn');
     if (btn) {
       if (activeCount > 0) btn.style.color = 'var(--accent)';
-      else btn.style.color = '#fff';
+      else btn.style.color = 'var(--text)';
     }
 
     var tagsContainer = document.getElementById('active-tags');
@@ -340,6 +426,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (filters.ratingMin > 0) html += '<span class="tag">≥ ' + filters.ratingMin + ' ★</span>';
       if (filters.showWatched) html += '<span class="tag">просмотренные</span>';
       if (filters.anime) html += '<span class="tag">аниме</span>';
+      if (filters.dorama) html += '<span class="tag">дорамы</span>';
       if (html) html += '<span class="reset-btn" id="reset-tags">Сбросить всё</span>';
       tagsContainer.innerHTML = html;
 
@@ -354,6 +441,7 @@ document.addEventListener('DOMContentLoaded', function() {
           else if (tag.textContent.includes('★')) filters.ratingMin = 0;
           else if (tag.textContent.includes('просмотренные')) filters.showWatched = false;
           else if (tag.textContent.includes('аниме')) filters.anime = false;
+          else if (tag.textContent.includes('дорамы')) filters.dorama = false;
           storageSet('filters', filters);
           populateGenreCheckboxes();
           populateMoodTags();
@@ -365,7 +453,7 @@ document.addEventListener('DOMContentLoaded', function() {
       var resetBtn = document.getElementById('reset-tags');
       if (resetBtn) {
         resetBtn.addEventListener('click', function() {
-          storageSet('filters', { genres: [], yearFrom: 1900, yearTo: 2026, ratingMin: 0, showWatched: false, moodTags: [], anime: false });
+          storageSet('filters', { genres: [], yearFrom: 1900, yearTo: 2026, ratingMin: 0, showWatched: false, moodTags: [], anime: false, dorama: false });
           populateGenreCheckboxes();
           populateMoodTags();
           updateFilterForm();
@@ -385,6 +473,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('rating-value').textContent = filters.ratingMin || 0;
     document.getElementById('filter-show-watched').checked = filters.showWatched || false;
     document.getElementById('filter-anime').checked = filters.anime || false;
+    document.getElementById('filter-dorama').checked = filters.dorama || false;
   }
 
   document.getElementById('open-filter-btn').addEventListener('click', function() {
@@ -411,7 +500,8 @@ document.addEventListener('DOMContentLoaded', function() {
       yearTo: parseInt(document.getElementById('year-to').value) || 2026,
       ratingMin: parseFloat(document.getElementById('rating-min').value) || 0,
       showWatched: document.getElementById('filter-show-watched').checked,
-      anime: document.getElementById('filter-anime').checked
+      anime: document.getElementById('filter-anime').checked,
+      dorama: document.getElementById('filter-dorama').checked
     };
     storageSet('filters', filters);
     storageSet('showWatched', filters.showWatched);
@@ -423,7 +513,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('filter-sheet').style.display = 'none';
   });
   document.getElementById('reset-filters').addEventListener('click', function() {
-    storageSet('filters', { genres: [], yearFrom: 1900, yearTo: 2026, ratingMin: 0, showWatched: false, moodTags: [], anime: false });
+    storageSet('filters', { genres: [], yearFrom: 1900, yearTo: 2026, ratingMin: 0, showWatched: false, moodTags: [], anime: false, dorama: false });
     populateGenreCheckboxes();
     populateMoodTags();
     updateFilterForm();
@@ -443,39 +533,23 @@ document.addEventListener('DOMContentLoaded', function() {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(function() {
       searchMovies(query);
-    }, 500);
+    }, 400);
   });
 
-  // Кнопка фильтра поиска
   document.getElementById('search-filter-btn').addEventListener('click', function() {
-    // Используем ту же шторку фильтров, что и в рандомайзере
     updateFilterForm();
     populateGenreCheckboxes();
     populateMoodTags();
     updateFilterUI();
     document.getElementById('filter-sheet').style.display = 'flex';
-    // При применении фильтров поиск будет обновлён вручную пользователем
   });
-
-  // Кнопка поиска дорам (внешняя ссылка)
-  // Добавим рядом с полем поиска кнопку "Дорамы"
-  var doramaBtn = document.createElement('button');
-  doramaBtn.textContent = '🇰🇷 Дорамы';
-  doramaBtn.className = 'btn btn-secondary';
-  doramaBtn.style.marginLeft = '8px';
-  doramaBtn.addEventListener('click', function() {
-    var query = document.getElementById('search-input').value.trim();
-    if (!query) query = 'дорама';
-    window.open('https://www.google.com/search?q=' + encodeURIComponent(query + ' дорама'), '_blank');
-  });
-  document.querySelector('.search-header').appendChild(doramaBtn);
 
   function searchMovies(query) {
     var filters = storageGet('filters', {});
     var params = 'api_key=' + TMDB_API_KEY + '&language=ru&query=' + encodeURIComponent(query) + '&page=1';
     if (filters.genres && filters.genres.length > 0) params += '&with_genres=' + filters.genres.join(',');
-    if (filters.yearFrom && filters.yearFrom > 1900) params += '&primary_release_date.gte=' + filters.yearFrom + '-01-01';
-    if (filters.yearTo && filters.yearTo < 2026) params += '&primary_release_date.lte=' + filters.yearTo + '-12-31';
+    if (filters.anime) params += '&with_genres=16&with_keywords=210024';
+    if (filters.dorama) params += '&with_original_language=ko&with_genres=18';
     var url = TMDB_BASE_URL + '/search/movie?' + params;
     fetch(url)
       .then(function(resp) { return resp.json(); })
@@ -583,7 +657,6 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
 
-    // Обработчики удаления пользовательских коллекций
     document.querySelectorAll('.delete-collection').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -687,7 +760,6 @@ document.addEventListener('DOMContentLoaded', function() {
       shareContent(title, shareUrl);
     };
 
-    // Чек-лист по двойному клику
     document.querySelectorAll('#folder-cards .mini-card').forEach(function(card) {
       card.addEventListener('dblclick', function() {
         var movieId = parseInt(card.getAttribute('data-id'));
@@ -748,13 +820,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (folderId) openFolder(folderId);
   });
 
-  // ========== ШТОРКА ДЕТАЛЕЙ ==========
+  // ========== ПОЛНОЭКРАННАЯ ШТОРКА ДЕТАЛЕЙ ==========
   async function openMovieSheet(movieId) {
-    var url = TMDB_BASE_URL + '/movie/' + movieId + '?api_key=' + TMDB_API_KEY + '&language=ru&append_to_response=videos';
+    var url = TMDB_BASE_URL + '/movie/' + movieId + '?api_key=' + TMDB_API_KEY + '&language=ru&append_to_response=videos,credits';
     try {
       var resp = await fetch(url);
       var movie = await resp.json();
       if (!movie) return;
+
       document.getElementById('sheet-poster').style.backgroundImage = movie.poster_path
         ? 'url(https://image.tmdb.org/t/p/w500' + movie.poster_path + ')' : '';
       document.getElementById('sheet-title').textContent = movie.title || 'Без названия';
@@ -763,22 +836,26 @@ document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('sheet-genres').textContent = movie.genres ? movie.genres.map(function(g) { return g.name; }).join(', ') : '';
       document.getElementById('sheet-description').textContent = movie.overview || 'Описание отсутствует.';
 
-      var trailerBtn = document.getElementById('sheet-trailer');
-      trailerBtn.style.display = 'none';
-      if (movie.videos && movie.videos.results) {
-        var trailers = movie.videos.results.filter(function(v) { return v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'); });
-        if (trailers.length > 0) {
-          trailerBtn.style.display = 'inline-block';
-          trailerBtn.onclick = function() {
-            window.open('https://www.youtube.com/watch?v=' + trailers[0].key, '_blank');
-          };
-        }
+      // Актёры
+      var actorsContainer = document.getElementById('sheet-actors');
+      if (actorsContainer && movie.credits) {
+        displayActors(actorsContainer, movie.credits);
       }
 
-      document.getElementById('sheet-add-watchlist').dataset.movieId = movieId;
-      document.getElementById('sheet-add-watchlist').dataset.movieTitle = movie.title || '';
-      document.getElementById('sheet-add-watchlist').dataset.movieYear = (movie.release_date || '').substring(0, 4);
-      document.getElementById('sheet-add-watchlist').dataset.moviePoster = movie.poster_path ? 'https://image.tmdb.org/t/p/w500' + movie.poster_path : '';
+      // Трейлер
+      var trailerBtn = document.getElementById('sheet-trailer');
+      if (trailerBtn) {
+        trailerBtn.style.display = 'none';
+        if (movie.videos && movie.videos.results) {
+          var trailers = movie.videos.results.filter(function(v) { return v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'); });
+          if (trailers.length > 0) {
+            trailerBtn.style.display = 'inline-block';
+            trailerBtn.onclick = function() {
+              window.open('https://www.youtube.com/watch?v=' + trailers[0].key, '_blank');
+            };
+          }
+        }
+      }
 
       document.getElementById('sheet-mark-watched').dataset.movieId = movieId;
       document.getElementById('sheet-mark-watched').dataset.movieTitle = movie.title || '';
@@ -792,32 +869,21 @@ document.addEventListener('DOMContentLoaded', function() {
   document.querySelector('#movie-sheet .sheet-close').addEventListener('click', function() {
     document.getElementById('movie-sheet').style.display = 'none';
   });
-  document.getElementById('movie-sheet').addEventListener('click', function(e) {
-    if (e.target === this) this.style.display = 'none';
-  });
 
-  function addMovieFromSheet(btn, listKey) {
-    var movieId = parseInt(btn.dataset.movieId);
-    if (!movieId) return;
+  document.getElementById('sheet-mark-watched').addEventListener('click', function() {
+    var movieId = parseInt(this.dataset.movieId);
     var movieData = {
       id: movieId,
-      title: btn.dataset.movieTitle,
-      year: btn.dataset.movieYear,
-      poster: btn.dataset.moviePoster
+      title: this.dataset.movieTitle,
+      year: this.dataset.movieYear,
+      poster: this.dataset.moviePoster
     };
-    var list = storageGet(listKey, []);
-    if (!list.some(function(m) { return m.id === movieId; })) {
-      list.push(movieData);
-      storageSet(listKey, list);
+    var watched = storageGet('watched', []);
+    if (!watched.some(function(m) { return m.id === movieId; })) {
+      watched.push(movieData);
+      storageSet('watched', watched);
     }
     document.getElementById('movie-sheet').style.display = 'none';
-  }
-
-  document.getElementById('sheet-add-watchlist').addEventListener('click', function() {
-    addMovieFromSheet(this, 'watchlist');
-  });
-  document.getElementById('sheet-mark-watched').addEventListener('click', function() {
-    addMovieFromSheet(this, 'watched');
   });
 
   // ========== НАСТРОЙКИ ==========
@@ -830,14 +896,12 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   document.getElementById('clear-cache-btn').addEventListener('click', function() {
-    // Очищаем только локальный кэш (localStorage), но не CloudStorage
     var keysToRemove = [];
     for (var i = 0; i < localStorage.length; i++) {
       var key = localStorage.key(i);
       if (key.startsWith(STORAGE_PREFIX)) keysToRemove.push(key);
     }
     keysToRemove.forEach(function(key) { localStorage.removeItem(key); });
-    // Перезагружаем страницу, чтобы сбросить всё состояние
     window.location.reload();
   });
 
@@ -869,5 +933,5 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   updateFilterUI();
-  console.log('What2Watch v2.0 готов!');
+  console.log('What2Watch v. final готов!');
 });
