@@ -74,6 +74,7 @@ document.addEventListener('DOMContentLoaded', function() {
     localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
   }
 
+  // Инициализация хранилища
   if (!localStorage.getItem(STORAGE_PREFIX + 'watchlist')) storageSet('watchlist', []);
   if (!localStorage.getItem(STORAGE_PREFIX + 'watched')) storageSet('watched', []);
   if (!localStorage.getItem(STORAGE_PREFIX + 'excluded')) storageSet('excluded', []);
@@ -81,9 +82,11 @@ document.addEventListener('DOMContentLoaded', function() {
     storageSet('filters', { genres: [], yearFrom: 1900, yearTo: 2026, ratingMin: 0, showWatched: false });
   }
   if (!localStorage.getItem(STORAGE_PREFIX + 'showWatched')) storageSet('showWatched', false);
+  if (!localStorage.getItem(STORAGE_PREFIX + 'userCollections')) storageSet('userCollections', {});
+  if (!localStorage.getItem(STORAGE_PREFIX + 'checklists')) storageSet('checklists', {});
 
   // ========== TMDb API ==========
-  var TMDB_API_KEY = 'ef7c2a92898037d91e4481fc43a1bf6a'; // <-- замените
+  var TMDB_API_KEY = 'ef7c2a92898037d91e4481fc43a1bf6a'; // 
   var TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
   var allGenres = [];
@@ -122,24 +125,20 @@ document.addEventListener('DOMContentLoaded', function() {
       if (filters.ratingMin && filters.ratingMin > 0) params += '&vote_average.gte=' + filters.ratingMin;
     }
 
-    console.log('Параметры запроса:', params);
-
-    for (var attempt = 0; attempt < 8; attempt++) {
-      var randomPage = Math.floor(Math.random() * 20) + 1;
+    // До 15 попыток со случайными страницами от 1 до 500
+    for (var attempt = 0; attempt < 15; attempt++) {
+      var randomPage = Math.floor(Math.random() * 500) + 1;
       var url = TMDB_BASE_URL + '/discover/movie?' + params + '&page=' + randomPage;
       try {
         var resp = await fetch(url);
         var data = await resp.json();
-        if (!data.results || data.results.length === 0) {
-          console.warn('Пустой ответ на странице ' + randomPage);
-          continue;
-        }
+        if (!data.results || data.results.length === 0) continue;
+        // Перемешиваем результаты
         var shuffled = data.results.sort(function() { return 0.5 - Math.random(); });
         for (var i = 0; i < shuffled.length; i++) {
           var movie = shuffled[i];
           if (excluded.indexOf(movie.id) !== -1) continue;
           if (!showWatched && watchedIds.indexOf(movie.id) !== -1) continue;
-          console.log('Найден фильм:', movie.title);
           var detailUrl = TMDB_BASE_URL + '/movie/' + movie.id + '?api_key=' + TMDB_API_KEY + '&language=ru';
           var detailResp = await fetch(detailUrl);
           return await detailResp.json();
@@ -147,18 +146,15 @@ document.addEventListener('DOMContentLoaded', function() {
       } catch (err) { console.error('Ошибка запроса:', err); }
     }
     // Фолбэк без фильтров
-    console.warn('Основной запрос не дал результатов, пробуем без фильтров...');
     if (useFilters !== false) return await fetchRandomMovie(false);
     return null;
   }
 
   function updateMovieCard(movie) {
     if (!movie) {
-      console.error('updateMovieCard: movie is null');
       document.querySelector('h2').textContent = 'Не удалось загрузить фильм';
       return;
     }
-    console.log('Обновляем карточку:', movie.title);
     var posterUrl = movie.poster_path ? 'https://image.tmdb.org/t/p/w500' + movie.poster_path : '';
     var posterEl = document.querySelector('#screen-randomizer .poster-placeholder');
     if (posterEl) {
@@ -181,38 +177,49 @@ document.addEventListener('DOMContentLoaded', function() {
       card.dataset.movieTitle = movie.title || '';
       card.dataset.movieYear = (movie.release_date || '').substring(0, 4);
       card.dataset.moviePoster = posterUrl;
+      card.dataset.movieTrailer = ''; // будет заполнено при необходимости
     }
   }
 
-  // Первый запуск
-  console.log('Запуск первой загрузки...');
-  fetchRandomMovie().then(function(movie) {
-    if (!movie) {
-      // Экстренный фолбэк: запрос популярных фильмов без всяких условий
-      console.warn('Первая загрузка не удалась, запрашиваем популярные фильмы...');
-      var fallbackUrl = TMDB_BASE_URL + '/movie/popular?api_key=' + TMDB_API_KEY + '&language=ru&page=1';
-      fetch(fallbackUrl)
-        .then(function(resp) { return resp.json(); })
-        .then(function(data) {
-          if (data.results && data.results.length > 0) {
-            updateMovieCard(data.results[0]);
-          } else {
-            document.querySelector('h2').textContent = 'Ошибка: пустой ответ API';
-          }
-        })
-        .catch(function(err) {
-          console.error(err);
-          document.querySelector('h2').textContent = 'Ошибка сети или ключа';
-        });
-    } else {
-      updateMovieCard(movie);
-    }
-  });
+  // Загрузка первого фильма с гарантией случайности
+  function loadInitialMovie() {
+    fetchRandomMovie().then(function(movie) {
+      if (!movie) {
+        // Экстренный фолбэк – гарантированно случайный
+        var fallbackUrl = TMDB_BASE_URL + '/movie/popular?api_key=' + TMDB_API_KEY + '&language=ru&page=' + (Math.floor(Math.random() * 100) + 1);
+        fetch(fallbackUrl)
+          .then(function(resp) { return resp.json(); })
+          .then(function(data) {
+            if (data.results && data.results.length > 0) {
+              var randomIndex = Math.floor(Math.random() * data.results.length);
+              updateMovieCard(data.results[randomIndex]);
+            } else {
+              document.querySelector('h2').textContent = 'Ошибка загрузки';
+            }
+          })
+          .catch(function() {
+            document.querySelector('h2').textContent = 'Ошибка сети';
+          });
+      } else {
+        updateMovieCard(movie);
+      }
+    });
+  }
+
+  loadInitialMovie();
 
   // Разворачивание описания
   document.querySelector('#screen-randomizer .description').addEventListener('click', function(e) {
     this.classList.toggle('expanded');
     e.stopPropagation();
+  });
+
+  // Шеринг из рандомайзера
+  document.querySelector('.share-icon').addEventListener('click', function() {
+    var card = document.querySelector('#screen-randomizer .card');
+    var title = card.dataset.movieTitle;
+    var url = 'https://vladimirgreen.github.io/what2watch/?movie=' + card.dataset.movieId;
+    shareContent(title, url);
   });
 
   // ========== КНОПКИ РАНДОМАЙЗЕРА ==========
@@ -237,14 +244,14 @@ document.addEventListener('DOMContentLoaded', function() {
       var watchlist = storageGet('watchlist', []);
       if (!watchlist.some(function(m) { return m.id === movieId; })) { watchlist.push(movieData); storageSet('watchlist', watchlist); }
     }
-    fetchRandomMovie().then(updateMovieCard);
+    loadInitialMovie();
   }
 
   document.querySelector('.btn-skip').addEventListener('click', function() { handleButton('skip'); });
   document.querySelector('.btn-watched').addEventListener('click', function() { handleButton('watched'); });
   document.querySelector('.btn-watchlist').addEventListener('click', function() { handleButton('watchlist'); });
 
-  // ========== ФИЛЬТРЫ ==========
+  // ========== ФИЛЬТРЫ (полный функционал, как раньше) ==========
   function updateFilterUI() {
     var filters = storageGet('filters', {});
     var activeCount = 0;
@@ -300,7 +307,7 @@ document.addEventListener('DOMContentLoaded', function() {
           populateGenreCheckboxes();
           updateFilterForm();
           updateFilterUI();
-          fetchRandomMovie().then(updateMovieCard);
+          loadInitialMovie();
           document.getElementById('filter-sheet').style.display = 'none';
         });
       }
@@ -340,7 +347,7 @@ document.addEventListener('DOMContentLoaded', function() {
     storageSet('showWatched', filters.showWatched);
     document.getElementById('filter-sheet').style.display = 'none';
     updateFilterUI();
-    fetchRandomMovie().then(updateMovieCard);
+    loadInitialMovie();
   });
   document.getElementById('filter-close').addEventListener('click', function() {
     document.getElementById('filter-sheet').style.display = 'none';
@@ -350,91 +357,297 @@ document.addEventListener('DOMContentLoaded', function() {
     populateGenreCheckboxes();
     updateFilterForm();
     updateFilterUI();
-    fetchRandomMovie().then(updateMovieCard);
+    loadInitialMovie();
     document.getElementById('filter-sheet').style.display = 'none';
   });
 
-  // ========== ПАПКИ ПОДБОРОК ==========
-  function renderFolders() {
-    var foldersList = document.getElementById('folders-list');
-    var folderContent = document.getElementById('folder-content');
-    document.getElementById('folders-view').style.display = 'block';
-    folderContent.style.display = 'none';
-    var watchlist = storageGet('watchlist', []);
-    var watched = storageGet('watched', []);
-    foldersList.innerHTML = 
-      '<div class="collection-item system" data-folder="watchlist">⏳ Буду смотреть (' + watchlist.length + ')</div>' +
-      '<div class="collection-item system" data-folder="watched">✅ Просмотрено (' + watched.length + ')</div>';
-    document.querySelectorAll('.collection-item').forEach(function(item) {
-      item.addEventListener('click', function() {
-        openFolder(item.getAttribute('data-folder'));
+  // ========== ПОИСК ==========
+  var searchTimeout;
+  document.getElementById('search-input').addEventListener('input', function() {
+    var query = this.value.trim();
+    if (query.length < 2) {
+      document.getElementById('search-results').innerHTML = '';
+      return;
+    }
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(function() {
+      searchMovies(query);
+    }, 500);
+  });
+
+  function searchMovies(query) {
+    var url = TMDB_BASE_URL + '/search/movie?api_key=' + TMDB_API_KEY + '&language=ru&query=' + encodeURIComponent(query) + '&page=1';
+    fetch(url)
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        displaySearchResults(data.results || []);
+      })
+      .catch(function(err) {
+        console.error(err);
+      });
+  }
+
+  function displaySearchResults(movies) {
+    var container = document.getElementById('search-results');
+    if (movies.length === 0) {
+      container.innerHTML = '<p>Ничего не найдено</p>';
+      return;
+    }
+    var html = '';
+    movies.forEach(function(movie) {
+      var poster = movie.poster_path ? 'https://image.tmdb.org/t/p/w92' + movie.poster_path : '';
+      html += '<div class="mini-card" data-movie-id="' + movie.id + '" data-title="' + (movie.title || '') + '" data-year="' + (movie.release_date ? movie.release_date.substring(0,4) : '') + '" data-poster="' + poster + '">' +
+        (poster ? '<div class="mini-poster" style="background-image:url(' + poster + ');background-size:cover;"></div>' : '<div class="mini-poster"></div>') +
+        '<div class="mini-info"><p class="mini-title">' + movie.title + '</p><p class="mini-desc">' + (movie.release_date ? movie.release_date.substring(0,4) : '') + '</p></div>' +
+        '<button class="btn-add">+</button>' +
+      '</div>';
+    });
+    container.innerHTML = html;
+
+    // Обработчики на кнопки добавления
+    document.querySelectorAll('#search-results .btn-add').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var card = btn.closest('.mini-card');
+        var movieId = parseInt(card.dataset.movieId);
+        var title = card.dataset.title;
+        var year = card.dataset.year;
+        var poster = card.dataset.poster;
+        // Показать выбор подборки
+        showCollectionSelector(movieId, title, year, poster);
+      });
+    });
+
+    // Обработчики на карточки для открытия шторки
+    document.querySelectorAll('#search-results .mini-card').forEach(function(card) {
+      card.addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-add')) return;
+        openMovieSheet(parseInt(card.dataset.movieId));
       });
     });
   }
 
-  function openFolder(type) {
-    var movies = type === 'watchlist' ? storageGet('watchlist', []) : storageGet('watched', []);
-    var title = type === 'watchlist' ? 'Буду смотреть' : 'Просмотрено';
+  function showCollectionSelector(movieId, title, year, poster) {
+    var select = document.getElementById('collection-select');
+    var collections = storageGet('userCollections', {});
+    var watchlist = { name: 'Буду смотреть', system: true };
+    var options = [{ name: 'Буду смотреть', id: 'watchlist' }];
+    for (var id in collections) {
+      options.push({ name: collections[id].name, id: id });
+    }
+    select.innerHTML = '';
+    options.forEach(function(opt) {
+      var option = document.createElement('option');
+      option.value = opt.id;
+      option.textContent = opt.name;
+      select.appendChild(option);
+    });
+    document.getElementById('search-collection-select').classList.remove('hidden');
+    document.getElementById('add-to-collection-btn').onclick = function() {
+      var collectionId = select.value;
+      var movieData = { id: movieId, title: title, year: year, poster: poster };
+      if (collectionId === 'watchlist') {
+        var list = storageGet('watchlist', []);
+        if (!list.some(function(m) { return m.id === movieId; })) {
+          list.push(movieData);
+          storageSet('watchlist', list);
+        }
+      } else {
+        addMovieToUserCollection(collectionId, movieData);
+      }
+      document.getElementById('search-collection-select').classList.add('hidden');
+      alert('Добавлено!');
+    };
+  }
+
+  // ========== ПОДБОРКИ (системные и пользовательские) ==========
+  function renderFolders() {
+    var foldersList = document.getElementById('folders-list');
+    var watchlist = storageGet('watchlist', []);
+    var watched = storageGet('watched', []);
+    var userCollections = storageGet('userCollections', {});
+
+    var html = '';
+    html += '<div class="collection-item system" data-folder="watchlist">⏳ Буду смотреть (' + watchlist.length + ')</div>';
+    html += '<div class="collection-item system" data-folder="watched">✅ Просмотрено (' + watched.length + ')</div>';
+
+    for (var id in userCollections) {
+      var col = userCollections[id];
+      var count = col.movies ? col.movies.length : 0;
+      html += '<div class="collection-item user" data-folder="' + id + '">📁 ' + col.name + ' (' + count + ')</div>';
+    }
+
+    foldersList.innerHTML = html;
+    document.getElementById('folders-view').style.display = 'block';
+    document.getElementById('folder-content').style.display = 'none';
+
+    document.querySelectorAll('.collection-item').forEach(function(item) {
+      item.addEventListener('click', function() {
+        var folderId = item.getAttribute('data-folder');
+        openFolder(folderId);
+      });
+    });
+  }
+
+  document.getElementById('create-collection-btn').addEventListener('click', function() {
+    var name = prompt('Название подборки:');
+    if (!name) return;
+    var collections = storageGet('userCollections', {});
+    var id = 'col_' + Date.now();
+    collections[id] = { name: name, movies: [] };
+    storageSet('userCollections', collections);
+    renderFolders();
+  });
+
+  function openFolder(folderId) {
+    var movies = [];
+    var title = '';
+    var isSystem = (folderId === 'watchlist' || folderId === 'watched');
+    if (folderId === 'watchlist') {
+      movies = storageGet('watchlist', []);
+      title = 'Буду смотреть';
+    } else if (folderId === 'watched') {
+      movies = storageGet('watched', []);
+      title = 'Просмотрено';
+    } else {
+      var collections = storageGet('userCollections', {});
+      var col = collections[folderId];
+      if (!col) return;
+      title = col.name;
+      movies = col.movies || [];
+    }
+
     document.getElementById('folders-view').style.display = 'none';
     var folderContent = document.getElementById('folder-content');
     folderContent.style.display = 'block';
     document.getElementById('folder-title').textContent = title;
+
+    // Чек-лист: показывать отмеченные?
+    var showChecked = document.getElementById('show-checked').checked;
+    var checklists = storageGet('checklists', {});
+    var folderChecklist = checklists[folderId] || [];
+
+    var filteredMovies = showChecked ? movies : movies.filter(function(m) { return folderChecklist.indexOf(m.id) === -1; });
+
     var cardsContainer = document.getElementById('folder-cards');
-    if (movies.length === 0) {
+    if (filteredMovies.length === 0) {
       cardsContainer.innerHTML = '<p class="empty-msg">Пока пусто</p>';
     } else {
       var html = '';
-      movies.forEach(function(movie) {
-        html += createMiniCard(movie, type);
+      filteredMovies.forEach(function(movie) {
+        var checked = folderChecklist.indexOf(movie.id) !== -1 ? '✅ ' : '';
+        html += '<div class="mini-card" data-id="' + movie.id + '" data-list="' + folderId + '">' +
+          (movie.poster ? '<div class="mini-poster" style="background-image:url(' + movie.poster + ');background-size:cover;"></div>' : '<div class="mini-poster"></div>') +
+          '<div class="mini-info">' +
+            '<p class="mini-title">' + checked + (movie.title || 'Без названия') + '</p>' +
+            '<p class="mini-desc">' + (movie.year || '') + '</p>' +
+          '</div>' +
+          '<button class="btn-remove">×</button>' +
+        '</div>';
       });
       cardsContainer.innerHTML = html;
+
+      // Обработчики кликов на карточки – открытие шторки
       document.querySelectorAll('#folder-cards .mini-card').forEach(function(card) {
         card.addEventListener('click', function(e) {
-          if (e.target.closest('.btn-remove')) return;
+          if (e.target.classList.contains('btn-remove')) return;
+          openMovieSheet(parseInt(card.getAttribute('data-id')));
+        });
+      });
+
+      // Удаление
+      document.querySelectorAll('#folder-cards .btn-remove').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var card = btn.closest('.mini-card');
           var movieId = parseInt(card.getAttribute('data-id'));
-          if (movieId) openMovieSheet(movieId);
+          var listType = card.getAttribute('data-list');
+          if (isSystem) {
+            removeMovieFromSystemList(listType, movieId);
+          } else {
+            removeMovieFromUserCollection(listType, movieId);
+          }
+          card.remove();
         });
       });
     }
-    document.querySelector('#folder-content .back-btn').addEventListener('click', function() { renderFolders(); });
+
+    // Кнопка «Назад»
+    document.querySelector('#folder-content .back-btn').onclick = function() {
+      renderFolders();
+    };
+
+    // Шеринг подборки
+    document.getElementById('share-collection-btn').onclick = function() {
+      var shareUrl = 'https://vladimirgreen.github.io/what2watch/?collection=' + folderId;
+      shareContent(title, shareUrl);
+    };
+
+    // Чек-лист: отметка просмотра
+    document.querySelectorAll('#folder-cards .mini-card').forEach(function(card) {
+      card.addEventListener('dblclick', function() {
+        var movieId = parseInt(card.getAttribute('data-id'));
+        var checklists = storageGet('checklists', {});
+        if (!checklists[folderId]) checklists[folderId] = [];
+        var list = checklists[folderId];
+        var index = list.indexOf(movieId);
+        if (index === -1) {
+          list.push(movieId);
+        } else {
+          list.splice(index, 1);
+        }
+        storageSet('checklists', checklists);
+        openFolder(folderId); // перерисовать
+      });
+    });
   }
 
-  function createMiniCard(movie, listType) {
-    var posterHtml = movie.poster
-      ? '<div class="mini-poster" style="background-image: url(' + movie.poster + '); background-size: cover; background-position: center;"></div>'
-      : '<div class="mini-poster"></div>';
-    return '<div class="mini-card" data-id="' + movie.id + '" data-list="' + listType + '">' +
-      posterHtml +
-      '<div class="mini-info">' +
-        '<p class="mini-title">' + (movie.title || 'Без названия') + '</p>' +
-        '<p class="mini-desc">' + (movie.year || '') + '</p>' +
-      '</div>' +
-      '<button class="btn btn-remove">×</button>' +
-    '</div>';
-  }
-
-  document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('btn-remove')) {
-      e.stopPropagation();
-      var card = e.target.closest('.mini-card');
-      if (!card) return;
-      var id = parseInt(card.getAttribute('data-id'));
-      var listType = card.getAttribute('data-list');
-      removeMovieFromList(id, listType);
-      card.remove();
-    }
-  });
-
-  function removeMovieFromList(id, listType) {
+  function removeMovieFromSystemList(listType, movieId) {
     var key = listType === 'watchlist' ? 'watchlist' : 'watched';
     var list = storageGet(key, []);
-    var updated = list.filter(function(m) { return m.id !== id; });
+    var updated = list.filter(function(m) { return m.id !== movieId; });
     storageSet(key, updated);
   }
 
+  function removeMovieFromUserCollection(collectionId, movieId) {
+    var collections = storageGet('userCollections', {});
+    if (collections[collectionId]) {
+      collections[collectionId].movies = collections[collectionId].movies.filter(function(m) { return m.id !== movieId; });
+      storageSet('userCollections', collections);
+    }
+  }
+
+  function addMovieToUserCollection(collectionId, movieData) {
+    var collections = storageGet('userCollections', {});
+    if (collections[collectionId]) {
+      if (!collections[collectionId].movies.some(function(m) { return m.id === movieData.id; })) {
+        collections[collectionId].movies.push(movieData);
+        storageSet('userCollections', collections);
+      }
+    }
+  }
+
+  // Обработчик переключения показа отмеченных
+  document.getElementById('show-checked').addEventListener('change', function() {
+    var currentFolder = document.getElementById('folder-title').textContent;
+    var folderId = '';
+    if (currentFolder === 'Буду смотреть') folderId = 'watchlist';
+    else if (currentFolder === 'Просмотрено') folderId = 'watched';
+    else {
+      var collections = storageGet('userCollections', {});
+      for (var id in collections) {
+        if (collections[id].name === currentFolder) {
+          folderId = id;
+          break;
+        }
+      }
+    }
+    if (folderId) openFolder(folderId);
+  });
+
   // ========== ШТОРКА ДЕТАЛЕЙ ==========
   async function openMovieSheet(movieId) {
-    var url = TMDB_BASE_URL + '/movie/' + movieId + '?api_key=' + TMDB_API_KEY + '&language=ru';
+    var url = TMDB_BASE_URL + '/movie/' + movieId + '?api_key=' + TMDB_API_KEY + '&language=ru&append_to_response=videos';
     try {
       var resp = await fetch(url);
       var movie = await resp.json();
@@ -446,14 +659,30 @@ document.addEventListener('DOMContentLoaded', function() {
       document.getElementById('sheet-rating').textContent = '★ ' + (movie.vote_average ? movie.vote_average.toFixed(1) : '--');
       document.getElementById('sheet-genres').textContent = movie.genres ? movie.genres.map(function(g) { return g.name; }).join(', ') : '';
       document.getElementById('sheet-description').textContent = movie.overview || 'Описание отсутствует.';
+
+      // Трейлер
+      var trailerBtn = document.getElementById('sheet-trailer');
+      trailerBtn.style.display = 'none';
+      if (movie.videos && movie.videos.results) {
+        var trailers = movie.videos.results.filter(function(v) { return v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'); });
+        if (trailers.length > 0) {
+          trailerBtn.style.display = 'inline-block';
+          trailerBtn.onclick = function() {
+            window.open('https://www.youtube.com/watch?v=' + trailers[0].key, '_blank');
+          };
+        }
+      }
+
       document.getElementById('sheet-add-watchlist').dataset.movieId = movieId;
       document.getElementById('sheet-add-watchlist').dataset.movieTitle = movie.title || '';
       document.getElementById('sheet-add-watchlist').dataset.movieYear = (movie.release_date || '').substring(0, 4);
       document.getElementById('sheet-add-watchlist').dataset.moviePoster = movie.poster_path ? 'https://image.tmdb.org/t/p/w500' + movie.poster_path : '';
+
       document.getElementById('sheet-mark-watched').dataset.movieId = movieId;
       document.getElementById('sheet-mark-watched').dataset.movieTitle = movie.title || '';
       document.getElementById('sheet-mark-watched').dataset.movieYear = (movie.release_date || '').substring(0, 4);
       document.getElementById('sheet-mark-watched').dataset.moviePoster = movie.poster_path ? 'https://image.tmdb.org/t/p/w500' + movie.poster_path : '';
+
       document.getElementById('movie-sheet').style.display = 'flex';
     } catch (err) { console.error('Ошибка загрузки деталей:', err); }
   }
@@ -508,6 +737,34 @@ document.addEventListener('DOMContentLoaded', function() {
     window.location.reload();
   });
 
+  // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+  function shareContent(title, url) {
+    if (navigator.share) {
+      navigator.share({ title: title, url: url }).catch(function() {});
+    } else {
+      // Копирование в буфер
+      var textarea = document.createElement('textarea');
+      textarea.value = url;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      alert('Ссылка скопирована: ' + url);
+    }
+  }
+
+  // Обработка параметров URL (для шеринга фильма или подборки)
+  var urlParams = new URLSearchParams(window.location.search);
+  var sharedMovieId = urlParams.get('movie');
+  var sharedCollectionId = urlParams.get('collection');
+  if (sharedMovieId) {
+    openMovieSheet(parseInt(sharedMovieId));
+  }
+  if (sharedCollectionId) {
+    switchScreen('collections');
+    setTimeout(function() { openFolder(sharedCollectionId); }, 500);
+  }
+
   updateFilterUI();
-  console.log('What2Watch готов!');
+  console.log('What2Watch финальный билд готов!');
 });
