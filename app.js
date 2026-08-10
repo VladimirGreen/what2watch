@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (!localStorage.getItem(STORAGE_PREFIX + 'showWatched')) storageSet('showWatched', false);
 
   // ========== TMDb API ==========
-  var TMDB_API_KEY = 'ef7c2a92898037d91e4481fc43a1bf6a'; 
+  var TMDB_API_KEY = 'ef7c2a92898037d91e4481fc43a1bf6a'; // <-- замените
   var TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
   var allGenres = [];
@@ -122,30 +122,43 @@ document.addEventListener('DOMContentLoaded', function() {
       if (filters.ratingMin && filters.ratingMin > 0) params += '&vote_average.gte=' + filters.ratingMin;
     }
 
+    console.log('Параметры запроса:', params);
+
     for (var attempt = 0; attempt < 8; attempt++) {
       var randomPage = Math.floor(Math.random() * 20) + 1;
       var url = TMDB_BASE_URL + '/discover/movie?' + params + '&page=' + randomPage;
       try {
         var resp = await fetch(url);
         var data = await resp.json();
-        if (!data.results || data.results.length === 0) continue;
+        if (!data.results || data.results.length === 0) {
+          console.warn('Пустой ответ на странице ' + randomPage);
+          continue;
+        }
         var shuffled = data.results.sort(function() { return 0.5 - Math.random(); });
         for (var i = 0; i < shuffled.length; i++) {
           var movie = shuffled[i];
           if (excluded.indexOf(movie.id) !== -1) continue;
           if (!showWatched && watchedIds.indexOf(movie.id) !== -1) continue;
+          console.log('Найден фильм:', movie.title);
           var detailUrl = TMDB_BASE_URL + '/movie/' + movie.id + '?api_key=' + TMDB_API_KEY + '&language=ru';
           var detailResp = await fetch(detailUrl);
           return await detailResp.json();
         }
-      } catch (err) { console.error(err); }
+      } catch (err) { console.error('Ошибка запроса:', err); }
     }
+    // Фолбэк без фильтров
+    console.warn('Основной запрос не дал результатов, пробуем без фильтров...');
     if (useFilters !== false) return await fetchRandomMovie(false);
     return null;
   }
 
   function updateMovieCard(movie) {
-    if (!movie) { console.warn('Не удалось загрузить фильм'); return; }
+    if (!movie) {
+      console.error('updateMovieCard: movie is null');
+      document.querySelector('h2').textContent = 'Не удалось загрузить фильм';
+      return;
+    }
+    console.log('Обновляем карточку:', movie.title);
     var posterUrl = movie.poster_path ? 'https://image.tmdb.org/t/p/w500' + movie.poster_path : '';
     var posterEl = document.querySelector('#screen-randomizer .poster-placeholder');
     if (posterEl) {
@@ -171,7 +184,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  fetchRandomMovie().then(function(movie) { updateMovieCard(movie); });
+  // Первый запуск
+  console.log('Запуск первой загрузки...');
+  fetchRandomMovie().then(function(movie) {
+    if (!movie) {
+      // Экстренный фолбэк: запрос популярных фильмов без всяких условий
+      console.warn('Первая загрузка не удалась, запрашиваем популярные фильмы...');
+      var fallbackUrl = TMDB_BASE_URL + '/movie/popular?api_key=' + TMDB_API_KEY + '&language=ru&page=1';
+      fetch(fallbackUrl)
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          if (data.results && data.results.length > 0) {
+            updateMovieCard(data.results[0]);
+          } else {
+            document.querySelector('h2').textContent = 'Ошибка: пустой ответ API';
+          }
+        })
+        .catch(function(err) {
+          console.error(err);
+          document.querySelector('h2').textContent = 'Ошибка сети или ключа';
+        });
+    } else {
+      updateMovieCard(movie);
+    }
+  });
 
   // Разворачивание описания
   document.querySelector('#screen-randomizer .description').addEventListener('click', function(e) {
