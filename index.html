@@ -7,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>What2Watch</title>
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body class="theme-dark">
 
@@ -18,16 +18,17 @@
       <div class="card">
         <div class="poster-placeholder"></div>
         <div class="card-info">
+          <div class="card-icons">
+            <button class="icon-btn" id="share-movie-btn" title="Поделиться">↗️</button>
+            <button class="icon-btn" id="open-filter-btn" title="Фильтры подбора">⚙️</button>
+          </div>
           <h2>Загрузка...</h2>
           <p class="year"></p>
           <p class="rating"></p>
           <p class="genres"></p>
+          <div class="tags"></div>
           <p class="description"></p>
         </div>
-        <button class="share-icon" title="Поделиться">↗</button>
-      </div>
-      <div class="filter-bar">
-        <button class="btn-filter" id="open-filter-btn">⚙️ Настроить <span id="filter-count"></span></button>
       </div>
       <div class="card-actions">
         <button class="btn btn-skip">Не буду смотреть</button>
@@ -38,7 +39,10 @@
 
     <!-- Поиск -->
     <div id="screen-search" class="screen">
-      <input type="text" class="search-input" id="search-input" placeholder="Поиск фильмов...">
+      <div class="search-header">
+        <input type="text" class="search-input" id="search-input" placeholder="Поиск фильмов...">
+        <button class="icon-btn" id="search-filter-btn" title="Фильтры поиска">⚙️</button>
+      </div>
       <div class="mini-cards" id="search-results"></div>
       <div id="search-collection-select" class="hidden">
         <select id="collection-select"></select>
@@ -57,7 +61,7 @@
         <button class="back-btn">← Назад</button>
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <h3 id="folder-title"></h3>
-          <button id="share-collection-btn" title="Поделиться" style="background:none; border:none; font-size:1.2rem;">🔗</button>
+          <button id="share-collection-btn" title="Поделиться" class="icon-btn">🔗</button>
         </div>
         <div class="mini-cards" id="folder-cards"></div>
         <div id="checklist-toggle" style="margin-top:10px;">
@@ -81,7 +85,7 @@
         <input type="checkbox" id="setting-show-watched"> Показывать просмотренные
       </label>
       <h3>Данные</h3>
-      <button class="btn btn-secondary" id="clear-cache-btn">🗑 Сбросить все данные и перезагрузить</button>
+      <button class="btn btn-secondary" id="clear-cache-btn">🗑 Очистить кэш и перезагрузить</button>
     </div>
 
     <!-- Шторка деталей фильма -->
@@ -106,7 +110,7 @@
     <div id="filter-sheet" class="sheet-overlay" style="display:none;">
       <div class="sheet-content">
         <button class="sheet-close" id="filter-close">✕</button>
-        <h3>Настройка выдачи</h3>
+        <h3>Фильтры подбора</h3>
         <div class="active-filters" id="active-tags"></div>
         <div class="filter-group">
           <label>Жанры:</label>
@@ -127,9 +131,16 @@
           <label>
             <input type="checkbox" id="filter-show-watched"> Показывать просмотренные
           </label>
+          <label>
+            <input type="checkbox" id="filter-anime"> Аниме
+          </label>
+        </div>
+        <div class="filter-group">
+          <label>Атмосферные теги:</label>
+          <div id="mood-tags"></div>
         </div>
         <button class="btn btn-primary" id="apply-filters">Применить</button>
-        <button class="btn btn-secondary" id="reset-filters" style="background:#555; margin-top:5px;">Сбросить все</button>
+        <button class="btn btn-secondary" id="reset-filters">Сбросить все</button>
       </div>
     </div>
 
