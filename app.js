@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   // ========== TMDb API ==========
-  var TMDB_API_KEY = 'ВАШ_КЛЮЧ'; // <-- замените
+  var TMDB_API_KEY = 'ef7c2a92898037d91e4481fc43a1bf6a'; // 
   var TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
   var allGenres = [];
