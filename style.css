@@ -188,6 +188,7 @@ body {
   align-items: center;
 }
 .collection-item.system { border-left: 4px solid var(--accent); }
+.collection-item.user { border-left: 4px solid #6c5ce7; }
 .back-btn {
   background: none;
   border: none;
@@ -236,7 +237,8 @@ body {
   border-radius: 8px;
   margin-bottom: 15px;
 }
-.sheet-actions { display: flex; gap: 8px; margin-top: 15px; }
+.sheet-actions { display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap; }
+.btn-trailer { background: #e67e22; }
 
 .filter-group { margin-bottom: 15px; }
 .filter-group label { display: block; margin-bottom: 4px; font-weight: 500; }
@@ -321,3 +323,7 @@ body.theme-vhs {
   --btn-bg: #302b63; --btn-text: #fff; --nav-bg: #1a1040; --border: #ff00ff;
   --accent: #ff00ff; font-family: 'Courier New', monospace;
 }
+
+.hidden { display: none; }
+#search-collection-select { margin-top: 10px; }
+#collection-select { padding: 8px; border-radius: 6px; background: var(--card-bg); color: var(--text); border: 1px solid var(--border); }
