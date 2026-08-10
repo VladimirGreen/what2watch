@@ -38,9 +38,7 @@ body {
   padding: 20px 15px 70px;
   overflow-y: auto;
 }
-.screen.active {
-  display: block;
-}
+.screen.active { display: block; }
 
 .card {
   background: var(--card-bg);
@@ -54,9 +52,7 @@ body {
   background: linear-gradient(135deg, #2a2a4a, #3a3a5a);
   border-radius: var(--radius) var(--radius) 0 0;
 }
-.card-info {
-  padding: 15px;
-}
+.card-info { padding: 15px; }
 .card-info h2 { margin: 0 0 5px; }
 .year, .rating, .genres, .description {
   margin: 4px 0;
@@ -114,11 +110,7 @@ body {
   color: var(--accent);
 }
 
-.card-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: space-around;
-}
+.card-actions { display: flex; gap: 8px; justify-content: space-around; }
 .btn {
   flex: 1;
   padding: 12px;
@@ -145,11 +137,7 @@ body {
   margin-bottom: 15px;
 }
 
-.mini-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+.mini-cards { display: flex; flex-direction: column; gap: 8px; }
 .mini-card {
   display: flex;
   align-items: center;
@@ -248,29 +236,12 @@ body {
   border-radius: 8px;
   margin-bottom: 15px;
 }
-.sheet-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 15px;
-}
+.sheet-actions { display: flex; gap: 8px; margin-top: 15px; }
 
-.filter-group {
-  margin-bottom: 15px;
-}
-.filter-group label {
-  display: block;
-  margin-bottom: 4px;
-  font-weight: 500;
-}
-#genre-checkboxes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-#genre-checkboxes label {
-  font-weight: normal;
-  cursor: pointer;
-}
+.filter-group { margin-bottom: 15px; }
+.filter-group label { display: block; margin-bottom: 4px; font-weight: 500; }
+#genre-checkboxes { display: flex; flex-wrap: wrap; gap: 8px; }
+#genre-checkboxes label { font-weight: normal; cursor: pointer; }
 input[type="number"] {
   width: 70px;
   padding: 6px;
@@ -279,16 +250,9 @@ input[type="number"] {
   background: var(--bg);
   color: var(--text);
 }
-input[type="range"] {
-  width: 100%;
-}
+input[type="range"] { width: 100%; }
 
-.active-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
-}
+.active-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .active-filters .tag {
   background: var(--accent);
   color: #fff;
@@ -307,12 +271,7 @@ input[type="range"] {
   cursor: pointer;
 }
 
-.theme-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
+.theme-selector { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .theme-btn {
   padding: 8px 14px;
   border: 1px solid var(--border);
@@ -345,43 +304,20 @@ input[type="range"] {
   padding: 5px 15px;
   border-radius: 10px;
 }
-.nav-btn.active {
-  color: var(--accent);
-  background: rgba(255,255,255,0.05);
-}
+.nav-btn.active { color: var(--accent); background: rgba(255,255,255,0.05); }
 
 /* Темы */
 body.theme-light {
-  --bg: #f5f5f5;
-  --card-bg: #ffffff;
-  --text: #111;
-  --text-secondary: #555;
-  --btn-bg: #e0e0e0;
-  --btn-text: #000;
-  --nav-bg: #ffffff;
-  --border: #ddd;
+  --bg: #f5f5f5; --card-bg: #fff; --text: #111; --text-secondary: #555;
+  --btn-bg: #e0e0e0; --btn-text: #000; --nav-bg: #fff; --border: #ddd;
 }
 body.theme-retro {
-  --bg: #f4e4c1;
-  --card-bg: #e8d5b0;
-  --text: #3e2f1c;
-  --text-secondary: #5e4a2e;
-  --btn-bg: #c19a6b;
-  --btn-text: #2c1e0e;
-  --nav-bg: #d4b896;
-  --border: #b89a7a;
-  --accent: #8b5a2b;
-  font-family: 'Georgia', serif;
+  --bg: #f4e4c1; --card-bg: #e8d5b0; --text: #3e2f1c; --text-secondary: #5e4a2e;
+  --btn-bg: #c19a6b; --btn-text: #2c1e0e; --nav-bg: #d4b896; --border: #b89a7a;
+  --accent: #8b5a2b; font-family: 'Georgia', serif;
 }
 body.theme-vhs {
-  --bg: #0f0c29;
-  --card-bg: #1a1040;
-  --text: #f0e6ff;
-  --text-secondary: #c0b0e0;
-  --btn-bg: #302b63;
-  --btn-text: #fff;
-  --nav-bg: #1a1040;
-  --border: #ff00ff;
-  --accent: #ff00ff;
-  font-family: 'Courier New', monospace;
+  --bg: #0f0c29; --card-bg: #1a1040; --text: #f0e6ff; --text-secondary: #c0b0e0;
+  --btn-bg: #302b63; --btn-text: #fff; --nav-bg: #1a1040; --border: #ff00ff;
+  --accent: #ff00ff; font-family: 'Courier New', monospace;
 }
