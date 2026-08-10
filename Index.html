@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src *;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>What2Watch</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-dark">
+
+  <div id="app">
+
+    <!-- Рандомайзер -->
+    <div id="screen-randomizer" class="screen active">
+      <div class="card">
+        <div class="poster-placeholder"></div>
+        <div class="card-info">
+          <h2>Название фильма</h2>
+          <p class="year">2025</p>
+          <p class="rating">★ 7.8</p>
+          <p class="genres">драма, комедия</p>
+          <p class="description">Краткое описание...</p>
+        </div>
+        <button class="share-icon" title="Поделиться">↗</button>
+      </div>
+
+      <!-- Кнопка настройки фильтров -->
+      <div class="filter-bar">
+        <button class="btn-filter" id="open-filter-btn">⚙️ Настроить <span id="filter-count"></span></button>
+      </div>
+
+      <div class="card-actions">
+        <button class="btn btn-skip">Не буду смотреть</button>
+        <button class="btn btn-watched">Смотрел</button>
+        <button class="btn btn-watchlist">Буду смотреть</button>
+      </div>
+    </div>
+
+    <!-- Поиск -->
+    <div id="screen-search" class="screen">
+      <input type="text" class="search-input" placeholder="Поиск...">
+      <div class="mini-cards"></div>
+    </div>
+
+    <!-- Подборки -->
+    <div id="screen-collections" class="screen">
+      <div id="folders-view">
+        <h3>Мои подборки</h3>
+        <div id="folders-list"></div>
+      </div>
+      <div id="folder-content" style="display:none;">
+        <button class="back-btn">← Назад</button>
+        <h3 id="folder-title"></h3>
+        <div class="mini-cards" id="folder-cards"></div>
+      </div>
+    </div>
+
+    <!-- Настройки -->
+    <div id="screen-settings" class="screen">
+      <h3>Тема</h3>
+      <div class="theme-selector">
+        <button class="theme-btn" data-theme="system">Системная</button>
+        <button class="theme-btn" data-theme="light">Светлая</button>
+        <button class="theme-btn" data-theme="dark">Тёмная</button>
+        <button class="theme-btn" data-theme="retro">Retro</button>
+        <button class="theme-btn" data-theme="vhs">VHS</button>
+      </div>
+      <h3>Поведение</h3>
+      <label>
+        <input type="checkbox" id="setting-show-watched"> Показывать просмотренные
+      </label>
+      <h3>Данные</h3>
+      <button class="btn btn-secondary" id="clear-cache-btn">🗑 Сбросить все данные и перезагрузить</button>
+    </div>
+
+    <!-- Шторка деталей фильма -->
+    <div id="movie-sheet" class="sheet-overlay" style="display:none;">
+      <div class="sheet-content">
+        <button class="sheet-close">✕</button>
+        <div class="sheet-poster" id="sheet-poster"></div>
+        <h2 id="sheet-title"></h2>
+        <p id="sheet-year"></p>
+        <p id="sheet-rating"></p>
+        <p id="sheet-genres"></p>
+        <p id="sheet-description"></p>
+        <div class="sheet-actions">
+          <button class="btn btn-watchlist" id="sheet-add-watchlist">Буду смотреть</button>
+          <button class="btn btn-watched" id="sheet-mark-watched">Просмотрено</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Шторка фильтров -->
+    <div id="filter-sheet" class="sheet-overlay" style="display:none;">
+      <div class="sheet-content">
+        <button class="sheet-close" id="filter-close">✕</button>
+        <h3>Настройка выдачи</h3>
+        <div class="active-filters" id="active-tags"></div>
+        <div class="filter-group">
+          <label>Жанры:</label>
+          <div id="genre-checkboxes"></div>
+        </div>
+        <div class="filter-group">
+          <label>Год от:</label>
+          <input type="number" id="year-from" min="1900" max="2026" value="1900">
+          <label>до:</label>
+          <input type="number" id="year-to" min="1900" max="2026" value="2026">
+        </div>
+        <div class="filter-group">
+          <label>Минимальный рейтинг:</label>
+          <input type="range" id="rating-min" min="0" max="10" step="0.5" value="0">
+          <span id="rating-value">0</span>
+        </div>
+        <div class="filter-group">
+          <label>
+            <input type="checkbox" id="filter-show-watched"> Показывать просмотренные
+          </label>
+        </div>
+        <button class="btn btn-primary" id="apply-filters">Применить</button>
+        <button class="btn btn-secondary" id="reset-filters" style="background:#555; margin-top:5px;">Сбросить все</button>
+      </div>
+    </div>
+
+    <!-- Навигация -->
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-screen="randomizer">🎲</button>
+      <button class="nav-btn" data-screen="search">🔍</button>
+      <button class="nav-btn" data-screen="collections">📁</button>
+      <button class="nav-btn" data-screen="settings">⚙️</button>
+    </nav>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
